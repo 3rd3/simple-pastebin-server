@@ -12,13 +12,13 @@
 # 2. python pastebin.py
 #
 
-import BaseHTTPServer
-from SimpleHTTPServer import SimpleHTTPRequestHandler
+import http.server
+from http.server import SimpleHTTPRequestHandler
 
 import uuid
 import os
-import urllib
-import cgi
+import urllib.request, urllib.parse, urllib.error
+import html
 
 
 # the port to listen on
@@ -156,13 +156,13 @@ class MyHandler(SimpleHTTPRequestHandler):
             self.end_headers()
 
             if self.path == "/":
-                self.wfile.write(FORM % {"CONTEXT_PATH": self.get_context_path()})
+                self.wfile.write((FORM % {"CONTEXT_PATH": self.get_context_path()}).encode('utf-8'))
 
             # get the clean content: no html
             elif self.path.find("/plain/") == 0:
                 filename = DATA_FOLDER_PATH + self.path[6:]
                 content = self.read_file(filename)
-                self.wfile.write(cgi.escape(content))
+                self.wfile.write((html.escape(content)).encode('utf-8'))
 
             # language(java, css) is specified
             elif len(self.path.split("/")) > 2:
@@ -171,10 +171,10 @@ class MyHandler(SimpleHTTPRequestHandler):
                 self.pastebin_file_name = splits[2]
                 filename = DATA_FOLDER_PATH + self.path[len(lang) + 1:]
                 content = self.read_file(filename)
-                self.wfile.write(CONTENT_TEMPLATE % {"LANG": lang,
-                    "CONTENT":cgi.escape(content),
+                self.wfile.write((CONTENT_TEMPLATE % {"LANG": lang,
+                    "CONTENT": html.escape(content),
                     "CONTEXT_PATH": self.get_context_path(),
-                    "PASTEBIN_FILE_NAME": self.pastebin_file_name})
+                    "PASTEBIN_FILE_NAME": self.pastebin_file_name}).encode('utf-8'))
 
             # no language is specified
             else:
@@ -184,17 +184,17 @@ class MyHandler(SimpleHTTPRequestHandler):
                     filename = "." + self.path
 
                 content = self.read_file(filename)
-                self.wfile.write(CONTENT_TEMPLATE % {"LANG": "java",
-                    "CONTENT":cgi.escape(content),
+                self.wfile.write((CONTENT_TEMPLATE % {"LANG": "java",
+                    "CONTENT": html.escape(content),
                     "CONTEXT_PATH": self.get_context_path(),
-                    "PASTEBIN_FILE_NAME": self.pastebin_file_name})
+                    "PASTEBIN_FILE_NAME": self.pastebin_file_name}).encode('utf-8'))
         else:
             if self.path == "/style.css":
                 self.log_request()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/css;charset=UTF-8")
                 self.end_headers()
-                self.wfile.write(STYLE_CSS)
+                self.wfile.write(STYLE_CSS.encode('utf-8'))
             else:
                 return SimpleHTTPRequestHandler.do_GET(self)
 
@@ -239,13 +239,13 @@ class MyHandler(SimpleHTTPRequestHandler):
 
         if self.command == "POST":
 
-            clength = int(self.headers.dict['content-length'])
+            clength = int(self.headers['content-length'])
             content = self.rfile.read(clength)
 
-            for pair in content.split("&"):
+            for pair in content.decode('utf-8').split("&"):
                 key, value = pair.split("=")
-                self.params[key] = urllib.unquote_plus(value)
+                self.params[key] = urllib.parse.unquote_plus(value)
 
 
-httpd = BaseHTTPServer.HTTPServer(('', HTTP_PORT), MyHandler)
+httpd = http.server.HTTPServer(('', HTTP_PORT), MyHandler)
 httpd.serve_forever()
